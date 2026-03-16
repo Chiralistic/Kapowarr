@@ -36,15 +36,18 @@ RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=private \
     && apt-get autoremove -y
 COPY --from=tianon/gosu /gosu /usr/local/bin/
 
-# Install Compiled Wheels
-RUN --mount=from=builder,source=/wheels,target=/wheels \
-    --mount=type=cache,target=/root/.cache/pip,sharing=private \
-    pip3 install --no-index --find-links=/wheels -r /wheels/requirements.txt
-
 RUN groupadd -g 1000 kapowarr && \
     useradd -u 1000 -g kapowarr -d /app -M -s /bin/bash kapowarr
-    
+
+COPY --from=builder /wheels /wheels
+COPY requirements.txt /wheels/
+RUN pip3 install --no-index --find-links=/wheels -r /wheels/requirements.txt
+
 COPY . .
+
+# read for code files, write for logs, execute for zip exe
+RUN mkdir -p /app/db && \
+    chmod -R 777 /app
 
 ENV PUID=0 \
     PGID=0 \
