@@ -45,7 +45,7 @@ RUN groupadd -g 1000 kapowarr && \
     useradd -u 1000 -g kapowarr -d /nonexistent -M -s /bin/bash kapowarr && \
     mkdir -p /app/db /app/logs /app/temp_downloads
 
-COPY . .
+COPY --chmod=755 . .
 
 ENV PUID=0 \
     PGID=0 \
