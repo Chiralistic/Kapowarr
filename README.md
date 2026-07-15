@@ -49,3 +49,82 @@ Featured on [Noted](https://noted.lol/kapowarr/) and [Respectlytics](https://res
 ![](https://github.com/user-attachments/assets/3fa8177c-f016-4cbd-b73e-6b577840b08e)
 ![](https://github.com/user-attachments/assets/69d59c21-3983-4acc-8777-ae0c7b65fdff)
 ![](https://github.com/user-attachments/assets/6e26c4e9-3c75-4b2c-b853-9fe2b56c9617)
+
+---
+
+## Updating a Proxmox Kapowarr Installation to This Test Fork
+
+This guide explains how to switch an existing Kapowarr LXC (installed via [Proxmox VE Helper Scripts](https://community-scripts.org/scripts/kapowarr)) to this Vibecode test fork.
+
+### Prerequisites
+- Proxmox LXC with Kapowarr installed via the community script
+- SSH access to the LXC
+- This fork pushed to your GitHub (`Chiralistic/Kapowarr`)
+
+### Step-by-Step
+
+#### 1. Stop the Kapowarr service
+```bash
+systemctl stop kapowarr
+```
+
+#### 2. Back up your database (always!)
+```bash
+cp -a /opt/kapowarr/db /opt/kapowarr/db.bak
+```
+
+#### 3. Clone your fork into the Kapowarr directory
+```bash
+# Remove the old upstream code (keep db and config)
+cd /opt/kapowarr
+rm -rf backend frontend requirements.txt main.py README.md pyproject.toml setup.cfg
+
+# Clone your test fork (replace with your actual branch name if different)
+git clone --depth 1 https://github.com/Chiralistic/Kapowarr.git .
+```
+
+#### 4. Install dependencies
+```bash
+# The community script uses uv (Python package manager)
+uv pip install -r requirements.txt
+```
+
+#### 5. Run the database migration
+The migration runs automatically on first start. You can also trigger it manually:
+```bash
+# The migration V45 creates the search_sources table for Prowlarr support
+# It runs automatically when Kapowarr starts
+```
+
+#### 6. Start the service
+```bash
+systemctl start kapowarr
+```
+
+#### 7. Verify the update
+- Open Kapowarr in your browser: `http://<LXC-IP>:5656`
+- Check the settings — you should see **"Search Sources"** and **"Usenet Clients"** tabs
+- Add your Prowlarr and SABnzbd credentials
+
+### Rolling Back
+If something breaks, restore the backup:
+```bash
+systemctl stop kapowarr
+cp -a /opt/kapowarr/db.bak /opt/kapowarr/db
+systemctl start kapowarr
+```
+
+### Updating to New Commits
+```bash
+systemctl stop kapowarr
+cd /opt/kapowarr
+git pull origin main
+uv pip install -r requirements.txt
+systemctl start kapowarr
+```
+
+### Notes
+- The database migration is **forward-only** — once applied, it cannot be undone
+- Your existing download clients, volumes, and settings are preserved
+- The `search_sources` table is new and will be empty until you add Prowlarr credentials
+- This fork is **not production-ready** — use at your own risk
