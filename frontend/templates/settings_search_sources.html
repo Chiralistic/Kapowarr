@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Kapowarr - Search Sources</title>
+	<meta charset="utf-8">
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/settings.css') }}">
+	<script src="{{ url_for('static', filename='js/utils.js') }}" defer></script>
+	<script src="{{ url_for('static', filename='js/settings_search_sources.js') }}" defer></script>
+</head>
+<body>
+	<h1>Search Sources</h1>
+	<p>Configure external search sources for your media.</p>
+
+	<h2>Prowlarr</h2>
+	<div id="prowlarr-client-list" class="client-list">
+		<button id="add-prowlarr-client" class="add-button icon-text-color" title="Add Prowlarr client">
+			<img src="{{url_base}}/static/img/cancel.svg" alt="">
+		</button>
+	</div>
+
+	{% set add_prowlarr_content %}
+		<p class="error hidden" id="add-prowlarr-error"></p>
+		<form id="add-prowlarr-form">
+			<table>
+				<tr>
+					<th><label for="add-prowlarr-title-input">Title</label></th>
+					<td>
+						<input type="text" id="add-prowlarr-title-input" required>
+					</td>
+				</tr>
+				<tr>
+					<th><label for="add-prowlarr-baseurl-input">Base URL</label></th>
+					<td>
+						<input type="text" id="add-prowlarr-baseurl-input" required>
+						<p>E.g. 'http://192.168.2.15:9696'</p>
+					</td>
+				</tr>
+				<tr>
+					<th><label for="add-prowlarr-apikey-input">API Key</label></th>
+					<td>
+						<input type="text" id="add-prowlarr-apikey-input" required>
+					</td>
+				</tr>
+			</table>
+		</form>
+	{% endset %}
+
+	{% set add_prowlarr_submit %}
+		<button id="test-prowlarr-add" class="test-button" type="button">
+			<div>Failed</div>
+			<div>Test</div>
+			<div>Success</div>
+		</button>
+		<button id="submit-prowlarr-add" type="submit" form="add-prowlarr-form">Add</button>
+	{% endset %}
+
+	{{ window(False, "add-prowlarr-window", "Add Prowlarr Client", add_prowlarr_content, add_prowlarr_submit) }}
+
+	{% set edit_prowlarr_content %}
+		<p class="error hidden" id="edit-prowlarr-error"></p>
+		<form id="edit-prowlarr-form">
+			<table>
+				<tr>
+					<th><label for="edit-prowlarr-title-input">Title</label></th>
+					<td>
+						<input type="text" id="edit-prowlarr-title-input" required>
+					</td>
+				</tr>
+				<tr>
+					<th><label for="edit-prowlarr-baseurl-input">Base URL</label></th>
+					<td>
+						<input type="text" id="edit-prowlarr-baseurl-input" required>
+						<p>E.g. 'http://192.168.2.15:9696'</p>
+					</td>
+				</tr>
+				<tr>
+					<th><label for="edit-prowlarr-apikey-input">API Key</label></th>
+					<td>
+						<input type="text" id="edit-prowlarr-apikey-input" required>
+					</td>
+				</tr>
+			</table>
+		</form>
+	{% endset %}
+
+	{% set edit_prowlarr_submit %}
+		<button id="delete-prowlarr-edit" type="button">Delete</button>
+		<button id="test-prowlarr-edit" class="test-button" type="button">
+			<div>Failed</div>
+			<div>Test</div>
+			<div>Success</div>
+		</button>
+		<button id="submit-prowlarr-edit" type="submit" form="edit-prowlarr-form">Save</button>
+	{% endset %}
+
+	{{ window(False, "edit-prowlarr-window", "Edit Prowlarr Client", edit_prowlarr_content, edit_prowlarr_submit) }}
+</body>
+</html>

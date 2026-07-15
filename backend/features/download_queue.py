@@ -25,11 +25,13 @@ from backend.base.helpers import CommaList, Singleton, get_subclasses
 from backend.base.logging import LOGGER
 from backend.features.post_processing import (PostProcessor,
                                               PostProcessorTorrentsComplete,
-                                              PostProcessorTorrentsCopy)
+                                              PostProcessorTorrentsCopy,
+                                              PostProcessorUsenet)
 from backend.implementations.blocklist import add_to_blocklist
 from backend.implementations.download_clients import (BaseDirectDownload,
                                                       MegaDownload,
-                                                      TorrentDownload)
+                                                      TorrentDownload,
+                                                      UsenetDownload)
 from backend.implementations.external_clients import ExternalClients
 from backend.implementations.getcomics import GetComicsPage
 from backend.implementations.volumes import Issue
@@ -178,6 +180,55 @@ class DownloadHandler(metaclass=Singleton):
         ws.emit(RemovedFromQueueEvent(download))
         return
 
+
+    def __run_usenet_download(self, download: UsenetDownload) -> None:
+        """Start a usenet download. Intended to be run in a thread.
+
+        Args:
+            download (UsenetDownload): The usenet download to run.
+                One of the entries in self.queue.
+        """
+        LOGGER.info(f'Starting usenet download: {download.id}')
+        download.run()
+
+        ws = WebSocket()
+
+        # When the download is sent to SABnzbd, we need to periodically check its status
+        while True:
+            download.update_status()
+            ws.emit(QueueStatusEvent(download))
+
+            if download.state == DownloadState.CANCELED_STATE:
+                download.remove_from_client(delete_files=True)
+                PostProcessor.canceled(download)
+                self.queue.remove(download)
+                break
+
+            elif download.state == DownloadState.FAILED_STATE:
+                download.remove_from_client(delete_files=True)
+                PostProcessor.failed(download)
+                self.queue.remove(download)
+                break
+
+            elif download.state == DownloadState.SHUTDOWN_STATE:
+                break
+
+            elif download.state == DownloadState.IMPORTING_STATE:
+                if self.settings.sv.delete_completed_torrents:  # Reuse setting for usenet
+                    download.remove_from_client(delete_files=False)
+                PostProcessorUsenet.success(download)
+                self.queue.remove(download)
+                break
+
+            else:
+                # Queued or downloading
+                download.sleep_event.wait(
+                    timeout=Constants.TORRENT_UPDATE_INTERVAL  # Reuse torrent interval
+                )
+
+        ws.emit(RemovedFromQueueEvent(download))
+        return
+
     # region Queue Management
     def _process_queue(self) -> None:
         """
@@ -316,6 +367,16 @@ class DownloadHandler(metaclass=Singleton):
                 download.download_thread = thread
                 thread.start()
 
+
+            elif isinstance(download, UsenetDownload):
+                thread = Server().get_db_thread(
+                    target=self.__run_usenet_download,
+                    args=(download,),
+                    name=f'UsenetDownloadThread-{download.id}'
+                )
+                download.download_thread = thread
+                thread.start()
+
             WebSocket().emit(AddedToQueueEvent(download))
         return downloads
 
@@ -357,6 +418,8 @@ class DownloadHandler(metaclass=Singleton):
         """
         if link.startswith(Constants.GC_SITE_URL):
             return 'gc'
+        elif 'prowlarr' in link.lower():
+            return 'prowlarr'
         return None
 
     def link_in_queue(self, link: str) -> bool:
@@ -471,6 +534,29 @@ class DownloadHandler(metaclass=Singleton):
                     f'Unable to extract download links from source; fail_reason="{e.reason.value}"'
                 )
                 return [], e.reason
+
+        elif link_type == 'prowlarr':
+            # Usenet download from Prowlarr
+            from backend.base.definitions import DownloadType
+
+            issue_number = None
+            if issue_id is not None:
+                try:
+                    issue_number = float(issue_id)
+                except (ValueError, TypeError):
+                    pass
+
+            downloads = [UsenetDownload(
+                download_link=link,
+                volume_id=volume_id,
+                covered_issues=issue_number,
+                source_type=DownloadType.USENET,
+                source_name='Prowlarr',
+                web_link=link,
+                web_title=None,
+                web_sub_title=None,
+                forced_match=force_match,
+            )]
 
         result = self.__prepare_downloads_for_queue(
             downloads,

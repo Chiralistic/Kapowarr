@@ -442,6 +442,13 @@ CREATE TABLE IF NOT EXISTS external_download_clients(
     password VARCHAR(255),
     api_token VARCHAR(255)
 );
+CREATE TABLE IF NOT EXISTS search_sources(
+    id INTEGER PRIMARY KEY,
+    client_type VARCHAR(255) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    base_url TEXT NOT NULL,
+    api_key TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS download_queue(
     id INTEGER PRIMARY KEY,
     volume_id INTEGER NOT NULL,

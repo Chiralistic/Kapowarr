@@ -527,3 +527,233 @@ document.querySelectorAll('#builtin-client-list > button').forEach(b => {
 document.querySelector('#add-mapping-form').action = 'javascript:addRemoteMapping()'
 document.querySelector('#add-remote-mapping').onclick = e => showAddRemoteMapping()
 document.querySelector('#edit-mapping-form').action = 'javascript:editRemoteMapping()'
+
+
+// region Usenet Client Management
+
+// Fetch and display usenet clients
+async function fetchUsenetClients() {
+	try {
+		const response = await fetch('/api/download_clients/usenet');
+		const result = await response.json();
+
+		if (response.status === 200) {
+			displayUsenetClients(result);
+		} else {
+			console.error('Failed to fetch usenet clients:', result);
+		}
+	} catch (e) {
+		console.error('Error fetching usenet clients:', e);
+	}
+}
+
+// Display usenet clients in the list
+function displayUsenetClients(clients) {
+	const container = document.getElementById('usenet-client-list');
+	if (!container) return;
+
+	container.innerHTML = '';
+
+	if (clients.length === 0) {
+		const emptyMsg = document.createElement('p');
+		emptyMsg.textContent = 'No usenet clients configured.';
+		emptyMsg.className = 'empty-message';
+		container.appendChild(emptyMsg);
+		return;
+	}
+
+	clients.forEach(client => {
+		const card = document.createElement('div');
+		card.className = 'client-card';
+		card.innerHTML = `
+			<div class="client-info">
+				<h3>${client.title}</h3>
+				<p class="client-url">${client.base_url}</p>
+			</div>
+			<div class="client-actions">
+				<button class="edit-button" data-id="${client.id}">Edit</button>
+				<button class="test-button" data-id="${client.id}">Test</button>
+			</div>
+		`;
+		container.appendChild(card);
+	});
+
+	// Add event listeners
+	container.querySelectorAll('.edit-button').forEach(btn => {
+		btn.onclick = () => editUsenetClient(btn.dataset.id);
+	});
+	container.querySelectorAll('.test-button').forEach(btn => {
+		btn.onclick = () => testUsenetClient(btn.dataset.id, btn);
+	});
+}
+
+// Edit usenet client
+async function editUsenetClient(id) {
+	try {
+		const response = await fetch(`/api/download_clients/usenet/${id}`);
+		const client = await response.json();
+
+		if (response.status === 200) {
+			document.querySelector('#edit-usenet-title-input').value = client.title;
+			document.querySelector('#edit-usenet-baseurl-input').value = client.base_url;
+			document.querySelector('#edit-usenet-form').action = `javascript:editUsenetClientSubmit(${id})`;
+			
+			const deleteBtn = document.getElementById('delete-usenet-edit');
+			deleteBtn.onclick = () => deleteUsenetClient(id);
+			
+			const testBtn = document.getElementById('test-usenet-edit');
+			testBtn.onclick = () => testUsenetClient(id, testBtn);
+
+			hide([document.querySelector('#edit-usenet-error')]);
+			showWindow('edit-usenet-window');
+		}
+	} catch (e) {
+		console.error('Error fetching usenet client:', e);
+	}
+}
+
+// Submit edit usenet client
+async function editUsenetClientSubmit(id) {
+	const title = document.querySelector('#edit-usenet-title-input').value;
+	const baseUrl = document.querySelector('#edit-usenet-baseurl-input').value;
+
+	try {
+		const response = await fetch(`/api/download_clients/usenet/${id}`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ title, base_url: baseUrl })
+		});
+
+		const result = await response.json();
+
+		if (response.status === 200) {
+			hide([document.querySelector('#edit-usenet-window')]);
+			fetchUsenetClients();
+		} else {
+			showError('edit-usenet-error', result.message || 'Failed to update usenet client');
+		}
+	} catch (e) {
+		console.error('Error updating usenet client:', e);
+	}
+}
+
+// Delete usenet client
+async function deleteUsenetClient(id) {
+	if (!confirm('Are you sure you want to delete this usenet client?')) {
+		return;
+	}
+
+	try {
+		const response = await fetch(`/api/download_clients/usenet/${id}`, {
+			method: 'DELETE'
+		});
+
+		if (response.status === 200) {
+			hide([document.querySelector('#edit-usenet-window')]);
+			fetchUsenetClients();
+		} else {
+			const result = await response.json();
+			showError('edit-usenet-error', result.message || 'Failed to delete usenet client');
+		}
+	} catch (e) {
+		console.error('Error deleting usenet client:', e);
+	}
+}
+
+// Test usenet client
+async function testUsenetClient(id, btn) {
+	btn.className = 'test-button testing';
+	btn.disabled = true;
+
+	try {
+		const response = await fetch(`/api/download_clients/usenet/${id}/test`, {
+			method: 'POST'
+		});
+
+		if (response.status === 200) {
+			btn.className = 'test-button success';
+		} else {
+			const result = await response.json();
+			btn.className = 'test-button failed';
+			btn.querySelector('div').textContent = result.message || 'Test failed';
+		}
+	} catch (e) {
+		btn.className = 'test-button failed';
+		console.error('Error testing usenet client:', e);
+	} finally {
+		setTimeout(() => {
+			btn.className = 'test-button';
+			btn.disabled = false;
+		}, 3000);
+	}
+}
+
+// Add usenet client
+async function addUsenetClient() {
+	const title = document.querySelector('#add-usenet-title-input').value;
+	const baseUrl = document.querySelector('#add-usenet-baseurl-input').value;
+
+	try {
+		const response = await fetch('/api/download_clients/usenet', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ title, base_url: baseUrl })
+		});
+
+		const result = await response.json();
+
+		if (response.status === 200) {
+			hide([document.querySelector('#add-usenet-window')]);
+			fetchUsenetClients();
+		} else {
+			showError('add-usenet-error', result.message || 'Failed to add usenet client');
+		}
+	} catch (e) {
+		console.error('Error adding usenet client:', e);
+	}
+}
+
+// Event listeners for usenet client forms
+document.addEventListener('DOMContentLoaded', () => {
+	const addUsenetForm = document.getElementById('add-usenet-form');
+	if (addUsenetForm) {
+		addUsenetForm.action = 'javascript:addUsenetClient()';
+	}
+
+	const addUsenetBtn = document.getElementById('test-usenet-add');
+	if (addUsenetBtn) {
+		addUsenetBtn.onclick = () => {
+			const title = document.querySelector('#add-usenet-title-input').value;
+			const baseUrl = document.querySelector('#add-usenet-baseurl-input').value;
+			if (title && baseUrl) {
+				addUsenetClient();
+			}
+		};
+	}
+});
+
+// Fetch usenet clients when the download clients tab is shown
+const originalShowTab = window.showTab;
+if (originalShowTab) {
+	window.showTab = function(tabId) {
+		if (tabId === 'download-clients') {
+			fetchUsenetClients();
+		}
+		return originalShowTab(tabId);
+	};
+}
+
+// Add usenet client button handler
+document.addEventListener('DOMContentLoaded', () => {
+	const addUsenetBtn = document.getElementById('add-usenet-client');
+	if (addUsenetBtn) {
+		addUsenetBtn.onclick = () => {
+			document.querySelector('#add-usenet-title-input').value = '';
+			document.querySelector('#add-usenet-baseurl-input').value = '';
+			hide([document.querySelector('#add-usenet-error')]);
+			showWindow('add-usenet-window');
+		};
+	}
+});
+
+// endregion

@@ -1,4 +1,12 @@
 <p align="center">
+<div align="center">
+
+# ⚠️ **WARNING: THIS IS A VIBECODE TEST PROJECT — DO NOT USE** ⚠️
+
+This repository is a development/test fork created for experimental feature integration (Usenet/Prowlarr support). **It is not production-ready and may contain broken or incomplete code. Do not use in production.**
+
+</div>
+
     <img src="./frontend/static/img/favicon.svg" alt="Kapowarr" style="margin: 20px 0; width: 15rem;">
 </p>
 <p align="center">

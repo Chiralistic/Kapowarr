@@ -1080,6 +1080,27 @@ def api_downloads():
         result = download_handler.get_all()
         return return_api(result)
 
+    elif request.method == 'POST':
+        data: dict = request.get_json()
+
+        link: str = extract_key(data, 'link')
+        volume_id: int = extract_key(data, 'volume_id')
+        issue_id: Union[int, None] = data.get('issue_id')
+        force_match: bool = data.get('force_match', False)
+
+        downloads, errors = download_handler.add(
+            link,
+            volume_id,
+            issue_id,
+            force_match
+        )
+
+        result = {
+            'downloads': [d.as_dict() for d in downloads],
+            'errors': errors
+        }
+        return return_api(result)
+
     elif request.method == 'DELETE':
         download_handler.remove_all()
         return return_api({})
@@ -1138,6 +1159,235 @@ def api_download_history():
 def api_empty_download_folder():
     DownloadHandler().empty_download_folder()
     return return_api({})
+
+
+# =====================
+# Download Clients
+# =====================
+
+
+@api.route('/download_clients/usenet', methods=['GET', 'POST'])
+@error_handler
+@auth
+def api_download_clients_usenet():
+    from backend.internals.db import get_db
+    from backend.implementations.usenet_clients.sabnzbd import SABnzbd
+
+    if request.method == 'GET':
+        db = get_db()
+        clients = db.execute(
+            'SELECT id, title, base_url FROM external_download_clients WHERE client_type = ? ORDER BY title',
+            ('SABnzbd',)
+        ).fetchall()
+        return return_api([dict(c) for c in clients])
+
+    elif request.method == 'POST':
+        data: dict = request.get_json()
+
+        title = data.get('title', '')
+        base_url = data.get('base_url', '')
+
+        if not title or not base_url:
+            raise InvalidKeyValue('title or base_url', 'empty')
+
+        db = get_db()
+        db.execute(
+            'INSERT INTO external_download_clients (client_type, title, base_url) VALUES (?, ?, ?)',
+            ('SABnzbd', title, base_url)
+        )
+        db.commit()
+
+        return return_api({'message': 'Usenet client added'})
+
+
+@api.route('/download_clients/usenet/<int:id>', methods=['GET', 'PUT', 'DELETE'])
+@error_handler
+@auth
+def api_download_clients_usenet_id(id: int):
+    from backend.internals.db import get_db
+
+    if request.method == 'GET':
+        db = get_db()
+        client = db.execute(
+            'SELECT id, title, base_url FROM external_download_clients WHERE id = ? AND client_type = ?',
+            (id, 'SABnzbd')
+        ).fetchone()
+
+        if not client:
+            raise NotFound('Usenet client')
+
+        return return_api(dict(client))
+
+    elif request.method == 'PUT':
+        data: dict = request.get_json()
+
+        title = data.get('title', '')
+        base_url = data.get('base_url', '')
+
+        if not title or not base_url:
+            raise InvalidKeyValue('title or base_url', 'empty')
+
+        db = get_db()
+        db.execute(
+            'UPDATE external_download_clients SET title = ?, base_url = ? WHERE id = ? AND client_type = ?',
+            (title, base_url, id, 'SABnzbd')
+        )
+        db.commit()
+
+        return return_api({'message': 'Usenet client updated'})
+
+    elif request.method == 'DELETE':
+        db = get_db()
+        db.execute(
+            'DELETE FROM external_download_clients WHERE id = ? AND client_type = ?',
+            (id, 'SABnzbd')
+        )
+        db.commit()
+
+        return return_api({'message': 'Usenet client deleted'})
+
+
+@api.route('/download_clients/usenet/<int:id>/test', methods=['POST'])
+@error_handler
+@auth
+def api_download_clients_usenet_test(id: int):
+    from backend.internals.db import get_db
+    from backend.implementations.usenet_clients.sabnzbd import SABnzbd
+
+    db = get_db()
+    client = db.execute(
+        'SELECT id, title, base_url FROM external_download_clients WHERE id = ? AND client_type = ?',
+        (id, 'SABnzbd')
+    ).fetchone()
+
+    if not client:
+        raise NotFound('Usenet client')
+
+    try:
+        sabnzbd = SABnzbd()
+        # Test connection
+        sabnzbd._connect()
+        return return_api({'message': 'Connection successful'})
+    except Exception as e:
+        raise InvalidKeyValue('connection', str(e))
+
+
+# =====================
+# Search Sources
+# =====================
+
+
+@api.route('/search_sources/prowlarr', methods=['GET', 'POST'])
+@error_handler
+@auth
+def api_search_sources_prowlarr():
+    from backend.internals.db import get_db
+
+    if request.method == 'GET':
+        db = get_db()
+        clients = db.execute(
+            'SELECT id, title, base_url FROM search_sources WHERE client_type = ? ORDER BY title',
+            ('Prowlarr',)
+        ).fetchall()
+        return return_api([dict(c) for c in clients])
+
+    elif request.method == 'POST':
+        data: dict = request.get_json()
+
+        title = data.get('title', '')
+        base_url = data.get('base_url', '')
+        api_key = data.get('api_key', '')
+
+        if not title or not base_url or not api_key:
+            raise InvalidKeyValue('title, base_url or api_key', 'empty')
+
+        db = get_db()
+        db.execute(
+            'INSERT INTO search_sources (client_type, title, base_url, api_key) VALUES (?, ?, ?, ?)',
+            ('Prowlarr', title, base_url, api_key)
+        )
+        db.commit()
+
+        return return_api({'message': 'Prowlarr client added'})
+
+
+@api.route('/search_sources/prowlarr/<int:id>', methods=['GET', 'PUT', 'DELETE'])
+@error_handler
+@auth
+def api_search_sources_prowlarr_id(id: int):
+    from backend.internals.db import get_db
+
+    if request.method == 'GET':
+        db = get_db()
+        client = db.execute(
+            'SELECT id, title, base_url FROM search_sources WHERE id = ? AND client_type = ?',
+            (id, 'Prowlarr')
+        ).fetchone()
+
+        if not client:
+            raise NotFound('Prowlarr client')
+
+        return return_api(dict(client))
+
+    elif request.method == 'PUT':
+        data: dict = request.get_json()
+
+        title = data.get('title', '')
+        base_url = data.get('base_url', '')
+        api_key = data.get('api_key', '')
+
+        if not title or not base_url or not api_key:
+            raise InvalidKeyValue('title, base_url or api_key', 'empty')
+
+        db = get_db()
+        db.execute(
+            'UPDATE search_sources SET title = ?, base_url = ?, api_key = ? WHERE id = ? AND client_type = ?',
+            (title, base_url, api_key, id, 'Prowlarr')
+        )
+        db.commit()
+
+        return return_api({'message': 'Prowlarr client updated'})
+
+    elif request.method == 'DELETE':
+        db = get_db()
+        db.execute(
+            'DELETE FROM search_sources WHERE id = ? AND client_type = ?',
+            (id, 'Prowlarr')
+        )
+        db.commit()
+
+        return return_api({'message': 'Prowlarr client deleted'})
+
+
+@api.route('/search_sources/prowlarr/<int:id>/test', methods=['POST'])
+@error_handler
+@auth
+def api_search_sources_prowlarr_test(id: int):
+    from backend.internals.db import get_db
+    from backend.search_sources.prowlarr import SearchProwlarr
+
+    db = get_db()
+    client = db.execute(
+        'SELECT id, title, base_url, api_key FROM search_sources WHERE id = ? AND client_type = ?',
+        (id, 'Prowlarr')
+    ).fetchone()
+
+    if not client:
+        raise NotFound('Prowlarr client')
+
+    try:
+        # Test Prowlarr connection by making a simple API call
+        from backend.base.helpers import Session
+        response = Session().get_text(
+            f"{client['base_url']}/api/v3/indexer",
+            params={'apikey': client['api_key']},
+            quiet_fail=True
+        )
+        if response is None:
+            raise Exception('Connection failed')
+        return return_api({'message': 'Connection successful'})
+    except Exception as e:
+        raise InvalidKeyValue('connection', str(e))
 
 # =====================
 # Blocklist

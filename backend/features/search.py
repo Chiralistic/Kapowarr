@@ -14,7 +14,11 @@ from backend.base.logging import LOGGER
 from backend.implementations.getcomics import search_getcomics
 from backend.implementations.matching import check_search_result_match
 from backend.implementations.volumes import Volume
+from backend.search_sources.prowlarr import register_prowlarr_search_source
 
+
+# Register Prowlarr search source at startup
+register_prowlarr_search_source()
 
 def _rank_search_result(
     result: MatchedSearchResultData,

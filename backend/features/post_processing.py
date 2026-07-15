@@ -386,3 +386,28 @@ class PostProcessorTorrentsCopy(PostProcessor):
         set_file_properties,
         reset_file_link
     ]
+
+
+class PostProcessorUsenet(PostProcessor):
+    """Post-processing for usenet (NZB) downloads."""
+
+    actions_success = [
+        remove_from_queue,
+        add_to_history,
+        move_to_dest,
+        rename_with_proper_extension,
+        add_file_to_database,
+        convert_file,
+        set_file_properties
+    ]
+
+    actions_canceled = [
+        delete_file,
+        remove_from_queue
+    ]
+
+    actions_failed = [
+        remove_from_queue,
+        add_to_history,
+        delete_file
+    ]

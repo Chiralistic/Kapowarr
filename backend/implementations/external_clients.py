@@ -166,6 +166,7 @@ class ExternalClients:
         """
         from backend.implementations.torrent_clients import (Transmission,
                                                              qBittorrent)
+        from backend.implementations.usenet_clients.SABnzbd import SABnzbd
         return {
             client.client_type: client
             for client in sorted(

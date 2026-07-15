@@ -458,6 +458,7 @@ class DownloadType(BaseEnum):
 
     DIRECT = 1
     TORRENT = 2
+    USENET = 3
 
 
 class GCDownloadSource(BaseEnum):
@@ -587,8 +588,12 @@ class RemoteMappingData(TypedDict):
 
 class SearchResultData(FilenameData):
     link: str
-    display_title: str
+    title: str  # Raw title (can replace display_title)
+    display_title: str  # Keep for backward compatibility
     source: str
+    size: int  # File size in bytes
+    seeders: int  # 0 for usenet, seeders for p2p
+    details: str  # Details URL or metadata
 
 
 class SearchResultMatchData(TypedDict):
@@ -889,6 +894,12 @@ class MassEditorAction(ABC):
 
 
 class SearchSource(ABC):
+    _subclasses: set = set()
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        cls._subclasses.add(cls)
+
     def __init__(self, query: str) -> None:
         """Prepare the search source.
 

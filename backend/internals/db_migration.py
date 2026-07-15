@@ -1184,3 +1184,18 @@ def _migrate_add_forced_file_match_column():
     """)
 
     return
+
+
+@DatabaseMigrationHandler.register_handler(45)
+def _migrate_add_search_sources_table():
+    """Add search_sources table for Prowlarr configuration."""
+    get_db().execute("""
+        CREATE TABLE IF NOT EXISTS search_sources(
+            id INTEGER PRIMARY KEY,
+            client_type VARCHAR(255) NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            base_url TEXT NOT NULL,
+            api_key TEXT NOT NULL
+        );
+    """)
+    return
