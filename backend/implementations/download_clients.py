@@ -830,7 +830,11 @@ class TorrentDownload(ExternalDownload, BaseDirectDownload):
         self._speed = 0.0
         self._size = -1
         self._download_thread = None
-        self._download_folder = settings.download_folder
+        # Sanitize download folder to prevent path traversal
+        try:
+            self._download_folder = os.path.realpath(settings.download_folder)
+        except (TypeError, ValueError):
+            self._download_folder = settings.download_folder
         self._sleep_event = Event()
 
         self._original_files: List[str] = []

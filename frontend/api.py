@@ -1186,14 +1186,15 @@ def api_download_clients_usenet():
 
         title = data.get('title', '')
         base_url = data.get('base_url', '')
+        api_token = data.get('api_token', '')
 
-        if not title or not base_url:
-            raise InvalidKeyValue('title or base_url', 'empty')
+        if not title or not base_url or not api_token:
+            raise InvalidKeyValue('title, base_url or api_token', 'empty')
 
         db = get_db()
         db.execute(
-            'INSERT INTO external_download_clients (client_type, title, base_url) VALUES (?, ?, ?)',
-            ('SABnzbd', title, base_url)
+            'INSERT INTO external_download_clients (client_type, title, base_url, api_token) VALUES (?, ?, ?, ?)',
+            ('SABnzbd', title, base_url, api_token)
         )
         db.commit()
 
@@ -1223,14 +1224,15 @@ def api_download_clients_usenet_id(id: int):
 
         title = data.get('title', '')
         base_url = data.get('base_url', '')
+        api_token = data.get('api_token', '')
 
-        if not title or not base_url:
-            raise InvalidKeyValue('title or base_url', 'empty')
+        if not title or not base_url or not api_token:
+            raise InvalidKeyValue('title, base_url or api_token', 'empty')
 
         db = get_db()
         db.execute(
-            'UPDATE external_download_clients SET title = ?, base_url = ? WHERE id = ? AND client_type = ?',
-            (title, base_url, id, 'SABnzbd')
+            'UPDATE external_download_clients SET title = ?, base_url = ?, api_token = ? WHERE id = ? AND client_type = ?',
+            (title, base_url, api_token, id, 'SABnzbd')
         )
         db.commit()
 
@@ -1256,7 +1258,7 @@ def api_download_clients_usenet_test(id: int):
 
     db = get_db()
     client = db.execute(
-        'SELECT id, title, base_url FROM external_download_clients WHERE id = ? AND client_type = ?',
+        'SELECT id, title, base_url, api_token FROM external_download_clients WHERE id = ? AND client_type = ?',
         (id, 'SABnzbd')
     ).fetchone()
 
@@ -1264,9 +1266,26 @@ def api_download_clients_usenet_test(id: int):
         raise NotFound('Usenet client')
 
     try:
-        sabnzbd = SABnzbd()
-        # Test connection
-        sabnzbd._connect()
+        error = SABnzbd.test(
+            base_url=client['base_url'],
+            api_token=client['api_token']
+        )
+        if error:
+            raise InvalidKeyValue('connection', error)
+        return return_api({'message': 'Connection successful'})
+    except Exception as e:
+        raise InvalidKeyValue('connection', str(e))
+
+    if not client:
+        raise NotFound('Usenet client')
+
+    try:
+        error = SABnzbd.test(
+            base_url=client['base_url'],
+            api_token=client['api_token']
+        )
+        if error:
+            raise InvalidKeyValue('connection', error)
         return return_api({'message': 'Connection successful'})
     except Exception as e:
         raise InvalidKeyValue('connection', str(e))

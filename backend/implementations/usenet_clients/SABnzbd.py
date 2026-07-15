@@ -221,6 +221,13 @@ class SABnzbd(BaseExternalClient):
                     storage_path = item.get('storage', '')
                     LOGGER.debug(f"SABnzbd reported storage path: {storage_path}")
 
+                    # Sanitize storage path to prevent path traversal
+                    try:
+                        storage_path = os.path.realpath(storage_path)
+                    except (TypeError, ValueError):
+                        LOGGER.warning(f"Invalid storage path: {storage_path}")
+                        storage_path = ''
+
                     # Find the main comic file in the storage path
                     final_files = []
                     if storage_path and os.path.exists(storage_path):

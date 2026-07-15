@@ -133,6 +133,9 @@ class Constants:
     TORRENT_TAG = "kapowarr"
     "The tag to give to downloads at external clients"
 
+    USENET_TAG = "kapowarr"
+    "The tag to give to usenet downloads at SABnzbd"
+
 
 class FileConstants:
     IMAGE_EXTENSIONS = (
